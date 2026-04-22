@@ -1,7 +1,7 @@
 {
   "name": "ai4value-diagnostico",
-  "version": "1.0.0",
-  "description": "Test de madurez IA para PYMEs - lead magnet de Nektiu",
+  "version": "1.1.0",
+  "description": "Test de madurez IA para PYMEs - lead magnet de Nektiu con informe Word personalizado",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,9 @@
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
     "lucide-react": "^0.408.0",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "docx": "^8.5.0",
+    "@vercel/blob": "^0.23.4"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

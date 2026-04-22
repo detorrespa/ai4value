@@ -1,140 +1,109 @@
 # AI4Value · Test de Madurez IA para PYMEs
 
-Lead magnet interactivo para captar contactos cualificados con un diagnóstico de madurez en IA. El usuario responde 35 preguntas (7 por cada uno de los 5 pilares), ve su pentágono comparado con la media del sector y recibe un informe personalizado por email a cambio de dejar sus datos.
+Lead magnet que genera un informe Word personalizado (~8 páginas) al momento con los datos de cada lead y se lo envía por email. Tú recibes una copia + notificación + datos en Google Sheet para tener todo listo antes de la llamada.
 
-## Stack
+## Flujo completo
 
-- **Next.js 14** (App Router) — el framework de Vercel, sin configuración
-- **React 18** — componentes de UI
-- **Recharts** — radar chart nativo y editable
-- **Tailwind CSS** — estilos
-- **Resend** (opcional) — envío del email con el informe
-- **Vercel Postgres** (opcional) — almacenamiento de leads
+1. El usuario responde 35 preguntas (sin dar datos personales)
+2. Ve su puntuación global y nivel de madurez
+3. Para "desbloquear" el informe completo rellena el formulario (nombre, email, empresa, sector, tamaño)
+4. El servidor:
+   - Genera un Word personalizado de 8 páginas con sus datos y puntuaciones
+   - Lo envía por email al lead como adjunto
+   - Te envía a ti una copia con sus datos de contacto
+   - Guarda todo en tu Google Sheet (vía webhook de Make)
+5. El usuario ve el informe en pantalla mientras tú ya tienes su Word listo para la llamada
 
-## Opciones de captura de leads
+## Despliegue en Vercel · 10 minutos
 
-El proyecto soporta tres modos, se configura con variables de entorno:
-
-1. **Webhook a Make / n8n / Zapier** — el más flexible. Envía el lead a tu automatización y tú decides qué hacer (guardar en Airtable, añadir a HubSpot, disparar email personalizado, etc.)
-2. **Resend + email directo** — envía un email al usuario con un enlace al informe y a ti una copia con los datos del lead
-3. **Solo localStorage** — sin backend, para una demo rápida. No recomendado para producción.
-
-## Despliegue en Vercel · 3 pasos
-
-### 1. Clonar e instalar
+### Paso 1 · Subir a GitHub y conectar con Vercel
 
 ```bash
-npm install
+unzip ai4value-nektiu.zip
+cd vercel-app
+git init
+git add .
+git commit -m "Initial"
+# Crea un repo privado en github.com y sigue las instrucciones para subirlo
 ```
 
-### 2. Configurar variables de entorno
+Luego ve a [vercel.com](https://vercel.com) → Add New → Project → importa el repo. Despliega con configuración por defecto. Ya tienes URL pública.
 
-Crea un archivo `.env.local` con (elige las que uses):
+### Paso 2 · Configurar Resend (para enviar emails)
 
-```env
-# Opción A: Webhook (recomendado)
-LEAD_WEBHOOK_URL=https://hook.eu2.make.com/XXXXXX
+1. Crea cuenta gratis en [resend.com](https://resend.com) (3000 emails/mes gratis)
+2. En el dashboard → API Keys → Create API Key → copia la clave
+3. En Vercel → tu proyecto → Settings → Environment Variables → añade:
+   - `RESEND_API_KEY` = la clave que copiaste
+   - `LEAD_FROM_EMAIL` = `onboarding@resend.dev` (para empezar sin verificar dominio)
+   - `LEAD_NOTIFICATION_EMAIL` = `alberto@nektiu.com`
+4. Redeploy el proyecto
 
-# Opción B: Resend para emails
-RESEND_API_KEY=re_XXXXXXXX
-LEAD_NOTIFICATION_EMAIL=alberto@nektiu.com
-LEAD_FROM_EMAIL=diagnostico@nektiu.com
+Ya se envían emails. El lead recibe su Word personalizado, tú recibes la notificación con copia del Word.
 
-# Público (se verá en el cliente)
-NEXT_PUBLIC_COMPANY_NAME=Nektiu
-NEXT_PUBLIC_CONTACT_EMAIL=alberto@nektiu.com
-```
+### Paso 3 · Configurar Vercel Blob (para guardar los Word permanentemente)
 
-### 3. Desplegar
+1. En Vercel → tu proyecto → Storage → Create Database → Blob → "ai4value-reports"
+2. Conecta al proyecto (botón Connect)
+3. Vercel añade automáticamente `BLOB_READ_WRITE_TOKEN` a las variables de entorno
+4. Redeploy
 
-```bash
-npx vercel
-```
+A partir de ahora cada informe generado se guarda en Blob y tienes URL permanente para consultarlo cuando quieras, sin tener que regenerarlo.
 
-O vía GitHub: sube el repo a GitHub, conecta Vercel al repo y se despliega automáticamente en cada push.
+### Paso 4 · Configurar Google Sheet + Make (para guardar los leads)
 
-Una vez en producción obtienes una URL como `ai4value-nektiu.vercel.app`. Para usar tu dominio (`ai4value.nektiu.com`), configura el DNS con un CNAME apuntando a `cname.vercel-dns.com` desde el panel de Vercel.
-
-## Estructura del proyecto
+1. Crea una hoja en Google Sheets con estas columnas en la fila 1:
 
 ```
-/
-├── app/
-│   ├── page.tsx                 # Landing + diagnóstico + resultados (toda la SPA)
-│   ├── api/
-│   │   └── submit-lead/
-│   │       └── route.ts         # Endpoint que recibe el lead y lo envía al webhook/email
-│   ├── layout.tsx
-│   └── globals.css
-├── lib/
-│   ├── pillars.ts               # Las 35 preguntas y la definición de pilares
-│   ├── benchmarks.ts            # Medias por sector (10 sectores)
-│   ├── actions.ts               # Biblioteca de acciones para el plan
-│   └── scoring.ts               # Cálculo de puntuaciones y comparativas
-├── components/
-│   ├── DiagnosticForm.tsx
-│   ├── Questionnaire.tsx
-│   ├── Results.tsx
-│   ├── RadarChart.tsx
-│   └── LeadCaptureModal.tsx
-├── public/
-│   └── informe-ai4value.pdf     # El informe Word/PDF que enviarás a los leads
-├── package.json
-├── next.config.mjs
-├── tailwind.config.ts
-└── README.md
+fecha | nombre | email | empresa | rol | sector | tamaño | score_global | nivel | estrategia | datos | personas | procesos | gobernanza | respuestas_estrategia | respuestas_datos | respuestas_personas | respuestas_procesos | respuestas_gobernanza | url_informe
 ```
 
-## Cómo funciona el lead magnet
+2. Ve a [make.com](https://make.com), crea cuenta gratis (1000 operaciones/mes gratis)
+3. Nuevo escenario → módulo `Webhooks` → `Custom webhook` → copia la URL que te da
+4. Segundo módulo: `Google Sheets · Add a row` conectado a tu cuenta
+5. Mapea los campos del webhook a las columnas del Sheet:
+   - `timestamp` → fecha
+   - `profile.name` → nombre
+   - `profile.email` → email
+   - `profile.company` → empresa
+   - `profile.role` → rol
+   - `profile.sectorLabel` → sector
+   - `profile.sizeLabel` → tamaño
+   - `scores.overall` → score_global
+   - `level.code + " " + level.name` → nivel
+   - `scores.estrategia/datos/personas/procesos/gobernanza` → cada pilar
+   - `answers.estrategia/datos/personas/procesos/gobernanza` → respuestas individuales
+   - `reportUrl` → url_informe
+6. Activa el escenario
+7. Pega la URL del webhook en Vercel como variable `LEAD_WEBHOOK_URL`
+8. Redeploy
 
-1. Usuario entra y responde las 35 preguntas (sin dar datos personales aún)
-2. Ve su puntuación global + radar + comparativa vs sector + 3 insights clave
-3. Para ver el plan de acción detallado y recibir el informe personalizado debe dejar: nombre, email, empresa, sector, tamaño, rol
-4. Al enviar, se dispara `POST /api/submit-lead` con todos los datos + puntuaciones
-5. El endpoint reenvía al webhook configurado (o a Resend) y el usuario ve el plan en pantalla
+Prueba: haz un test en tu URL de Vercel y verifica que el lead aparece en el Sheet.
 
-## Integración con Make (recomendado)
+## Cómo usarlo el día de la llamada
 
-Crea un escenario en Make con este trigger:
-
-- **Webhook** → recibe el JSON del lead
-- **Google Sheets / Airtable** → guarda el lead
-- **Gmail / Resend** → envía el email con el informe adjunto
-- **HubSpot / Pipedrive** → crea el contacto en tu CRM
-
-El JSON que llega al webhook tiene esta forma:
-
-```json
-{
-  "profile": {
-    "name": "Juan García",
-    "email": "juan@empresa.com",
-    "company": "Empresa SL",
-    "role": "Director General",
-    "sector": "industria",
-    "size": "pequena"
-  },
-  "scores": {
-    "estrategia": 45,
-    "datos": 38,
-    "personas": 52,
-    "procesos": 41,
-    "gobernanza": 35,
-    "overall": 42
-  },
-  "level": { "code": "L2", "name": "Adoptadora" },
-  "createdAt": "2026-04-21T10:30:00.000Z"
-}
-```
+1. Abres tu Google Sheet → filtras por fecha o empresa
+2. Copias la `url_informe` de esa fila → abres en el navegador → ya tienes el Word
+3. En el Sheet también ves las respuestas individuales de cada pilar para identificar puntos de dolor concretos
+4. Llamas al lead con todo el contexto preparado
 
 ## Personalización
 
-- **Preguntas**: edita `lib/pillars.ts`. 7 preguntas por pilar por defecto.
-- **Benchmarks**: ajusta valores en `lib/benchmarks.ts` conforme acumules datos reales.
-- **Acciones del plan**: edita la biblioteca en `lib/actions.ts`.
-- **Colores**: `tailwind.config.ts` tiene la paleta principal (teal, navy, gold, coral).
-- **Copy**: todo el texto en castellano está en los componentes React, directo en JSX.
+- **Preguntas**: `lib/pillars.ts` (7 preguntas por pilar)
+- **Benchmarks sector**: `lib/benchmarks.ts`
+- **Plan de acción**: `lib/scoring.ts`
+- **Contenido del informe Word**: `lib/generateReport.ts`
+- **Emails**: `app/api/submit-lead/route.ts` (funciones buildUserEmail y buildAdminEmail)
+- **Colores**: `tailwind.config.ts`
+
+## Upgrade futuro · Microsoft 365
+
+Cuando quieras enviar los emails desde `clientes@nektiu.com` (Outlook) en vez de Resend:
+1. Registrar app en Azure Portal para Microsoft Graph
+2. Reemplazar las llamadas `resend.emails.send()` por `graph.users().sendMail()` en `app/api/submit-lead/route.ts`
+
+Avísame cuando lo quieras hacer y te paso el código.
 
 ## Licencia
 
-Propiedad de Alberto de Torres Pachón · Nektiu. Uso interno.
+Propiedad de Alberto de Torres Pachón · Nektiu.
